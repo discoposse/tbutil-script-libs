@@ -148,37 +148,42 @@ CloudMigrationPlan.prototype.generate_vm_template_mapping = function () {
         ri_to_buy = false;
         cost_with_ri = 0;
         with_action = this.turbo_actions[widx];
-        for (woidx = 0; woidx < this.lift_and_shift_actions.length; woidx++) {
-            without_action = this.lift_and_shift_actions[woidx];
-            if (with_action.target.realtimeMarketReference.uuid === without_action.target.realtimeMarketReference.uuid) {
-                if (!with_action.hasOwnProperty('reservedInstance')) {
-                    for (sidx = 0; sidx < with_action.stats.length; sidx++) {
-                        if (with_action.stats[sidx].name === "costPrice") {
-                            for (fidx = 0; fidx < with_action.stats[sidx].filters.length; fidx++) {
-                                if (with_action.stats[sidx].filters[fidx].type === "savingsType" && with_action.stats[sidx].filters[fidx].value === "superSavings") {
-                                    ri_to_buy = true;
-                                    // TODO: This calculates the same as the dashboard, but it is consistently wrong (higher)
-                                    // than the actual 3yr RI.
-                                    cost_with_ri = with_action.stats[sidx].value * -1;
+        if (with_action.target.className === "VirtualMachine") {
+            for (woidx = 0; woidx < this.lift_and_shift_actions.length; woidx++) {
+                without_action = this.lift_and_shift_actions[woidx];
+                if (with_action.target.realtimeMarketReference.uuid === without_action.target.realtimeMarketReference.uuid) {
+                    if (!with_action.hasOwnProperty('reservedInstance')) { // 6.2 RI logic
+                        for (sidx = 0; sidx < with_action.stats.length; sidx++) {
+                            if (with_action.stats[sidx].name === "costPrice") {
+                                for (fidx = 0; fidx < with_action.stats[sidx].filters.length; fidx++) {
+                                    if (with_action.stats[sidx].filters[fidx].type === "savingsType" && with_action.stats[sidx].filters[fidx].value === "superSavings") {
+                                        ri_to_buy = true;
+                                        // TODO: This calculates the same as the dashboard, but it is consistently wrong (higher)
+                                        // than the actual 3yr RI.
+                                        cost_with_ri = with_action.stats[sidx].value * -1;
+                                    }
                                 }
                             }
                         }
+                    } else if (with_action.reservedInstance.toBuy) { // 6.3 RI logic
+                        ri_to_buy = true;
+                        cost_with_ri = with_action.reservedInstance.effectiveHourlyCost;
                     }
+                    rows.push([
+                        with_action.target.displayName,
+                        without_action.target.aspects.virtualMachineAspect.os,
+                        with_action.currentLocation.displayName,
+                        without_action.template.displayName,
+                        without_action.newLocation.displayName,
+                        without_action.target.costPrice,
+                        with_action.template.displayName,
+                        with_action.newEntity.aspects.virtualMachineAspect.os,
+                        with_action.newLocation.displayName,
+                        with_action.target.costPrice,
+                        cost_with_ri,
+                        ri_to_buy
+                    ]);
                 }
-                rows.push([
-                    with_action.target.displayName,
-                    without_action.target.aspects.virtualMachineAspect.os,
-                    with_action.currentLocation.displayName,
-                    without_action.template.displayName,
-                    without_action.newLocation.displayName,
-                    without_action.target.costPrice,
-                    with_action.template.displayName,
-                    with_action.newEntity.aspects.virtualMachineAspect.os,
-                    with_action.newLocation.displayName,
-                    with_action.target.costPrice,
-                    cost_with_ri,
-                    ri_to_buy
-                ]);
             }
         }
     }
