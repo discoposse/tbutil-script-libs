@@ -1,10 +1,95 @@
 /*global client,exports,writeTable*/
 /*jslint plusplus: true*/
+
+/**
+ * A class containing base functionality for all plan types. Intended as a class
+ * to be extended/inherited from, but the tbutil JS engine doesn't seem to support
+ * it. Namely the `Object.create` function.
+ * @class
+ */
+var Plan = (function () {
+        "use strict";
+
+        /**
+         * Set at construct time. The payload of a POST request to /vmturbo/rest/scenarios. Each inheriting class must assemble this for the appropriate plan type.
+         * @scenario_create_request Plan#scenario_create_request
+         * @type {object}
+         */
+        Plan.prototype.scenario_create_request = {};
+
+        /**
+         * The response from a post to /vmturbo/rest/scenarios
+         * @scenario_create_response Plan#scenario_create_response
+         * @type {object}
+         */
+        Plan.prototype.scenario_create_response = {};
+
+        /**
+         * The response from a post to /vmturbo/rest/markets/{market_Uuid}/scenarios/{scenario_Uuid}
+         * @scenario_run_response Plan#scenario_run_response
+         * @type {object}
+         */
+        Plan.prototype.scenario_run_response = {};
+
+        /**
+         * Set at construct time. A name for the resulting plan market. This is *not* the name of the plan, which is in the scenario_create_request, but instead a name for the market that gets created when this plan is run. This should be unique. I.E. <PLAN_TYPE>-${Date.now()}
+         * @plan_market_name Plan#plan_market_name
+         * @type {string}
+         */
+        Plan.prototype.plan_market_name = "";
+
+        /**
+         * Initializes a new instance of Plan
+         * @constructs Plan
+         * @param {object} scenario_create_request - The payload of a POST request to /vmturbo/rest/scenarios. Each inheriting class must assemble this for the appropriate plan type.
+         * @param {string} plan_market_name - A name for the resulting plan market. This is *not* the name of the plan, which is in the scenario_create_request, but instead a name for the market that gets created when this plan is run. This should be unique. I.E. <PLAN_TYPE>-${Date.now()}
+         */
+        function Plan(scenario_create_request, plan_market_name) {
+            this.scenario_create_request = scenario_create_request;
+            this.plan_market_name = plan_market_name;
+        }
+
+        /**
+         * Creates the scenario defined in Plan#scenario_create_request, and executes the plan against the realtime market.
+         * @name Plan#run
+         * @function
+         */
+        Plan.prototype.run = function () {
+            this.scenario_create_response = client.createScenario(this.scenario_create_request);
+            this.scenario_run_response = client.applyAndRunScenario(
+                "Market",
+                parseInt(this.scenario_create_response.uuid, 10),
+                {
+                    disable_hateoas: true,
+                    ignore_constraints: true,
+                    plan_market_name: this.plan_market_name
+                }
+            );
+        };
+
+        Plan.prototype.wait = function () {
+            // Loop getting the created market until it is in "SUCCEDED" .state
+            var state = "";
+            do {
+                this.scenario_run_response = client.getMarketByUuid(this.scenario_run_response.uuid);
+                state = this.scenario_run_response.state;
+                // TODO: A sleep? https://stackoverflow.com/questions/951021/what-is-the-javascript-version-of-sleep
+            } while (state !== "SUCCEEDED");
+        };
+
+        Plan.prototype.get_actions = function () {
+            return client.getActionsByMarketUuid(
+                this.scenario_run_response.uuid,
+                {},
+                {}
+            );
+        };
+
+        return Plan;
+    }());
+
 function CloudMigrationPlan(from, to, name, options) {
     "use strict";
-    this.scenario_create_response = {};
-    this.scenario_run_response = {};
-    this.plan_market = {};
 
     this.scenario_create_request = {
         "configChanges": {
@@ -48,10 +133,7 @@ function CloudMigrationPlan(from, to, name, options) {
     this.to = to;
     this.name = name;
     this.options = options;
-}
 
-CloudMigrationPlan.prototype.run = function () {
-    "use strict";
     this.scenario_create_request.scope = [this.from, this.to];
     this.scenario_create_request.topologyChanges.migrateList = [{source: this.from, destination: this.to}];
 
@@ -90,29 +172,8 @@ CloudMigrationPlan.prototype.run = function () {
         this.scenario_create_request.configChanges.osMigrationSettingList = this.byol_osMigrationSettingsList;
     }
     this.scenario_create_request.topologyChanges.removeList = [{target: exclude_group}];
-
-    this.scenario_create_response = client.createScenario(this.scenario_create_request);
-    this.scenario_run_response = client.applyAndRunScenario(
-        "Market",
-        parseInt(this.scenario_create_response.uuid, 10),
-        {
-            disable_hateoas: true,
-            ignore_constraints: true,
-            plan_market_name: "CLOUD_MIGRATION_" + this.from.uuid + "_" + this.to.uuid + "_" + Date.now()
-        }
-    );
-};
-
-CloudMigrationPlan.prototype.wait = function () {
-    "use strict";
-    // Loop getting the created market until it is in "SUCCEDED" .state
-    var state = "";
-    do {
-        this.scenario_run_response = client.getMarketByUuid(this.scenario_run_response.uuid);
-        state = this.scenario_run_response.state;
-        // TODO: A sleep? https://stackoverflow.com/questions/951021/what-is-the-javascript-version-of-sleep
-    } while (state !== "SUCCEEDED");
-};
+    this.plan_market_name = "CLOUD_MIGRATION_" + this.from.uuid + "_" + this.to.uuid + "_" + Date.now();
+}
 
 CloudMigrationPlan.prototype.generate_vm_template_mapping = function () {
     "use strict";
@@ -132,12 +193,14 @@ CloudMigrationPlan.prototype.generate_vm_template_mapping = function () {
         rows = [],
         ri_to_buy = false,
         cost_with_ri = 0;
-    // Get MOVE actions for VMs from the
+    // Get MOVE actions for VMs from the "after" market
     this.turbo_actions = client.getActionsByMarketUuid(
         this.scenario_run_response.uuid,
         {},
         getActionsBody
     );
+
+    // Get MOVE actions for VMs from the "before" market
     this.lift_and_shift_actions = client.getActionsByMarketUuid(
         this.scenario_run_response.relatedPlanMarkets[0].uuid,
         {},
@@ -159,7 +222,7 @@ CloudMigrationPlan.prototype.generate_vm_template_mapping = function () {
                                     if (with_action.stats[sidx].filters[fidx].type === "savingsType" && with_action.stats[sidx].filters[fidx].value === "superSavings") {
                                         ri_to_buy = true;
                                         // TODO: This calculates the same as the dashboard, but it is consistently wrong (higher)
-                                        // than the actual 3yr RI.
+                                        // than the actual 3yr RI. -- Fixed in 6.3.x?
                                         cost_with_ri = with_action.stats[sidx].value * -1;
                                     }
                                 }
@@ -394,4 +457,84 @@ CloudMigrationPlan.prototype.save_volume_mapping_csv = function (filepath) {
     writeTable(filepath, headers, rows);
 };
 
+CloudMigrationPlan.prototype = Object.create(Plan.prototype);
+
+function CloudOptimizePlan(scope, name, options) {
+    "use strict";
+
+    this.scenario_create_request = {
+        "configChanges": {
+            "addPolicyList": [],
+            "automationSettingList": [
+                {
+                    "uuid": "resize",
+                    "displayName": "resize for VMS enabled",
+                    "value": "true",
+                    "entityType": "VirtualMachine"
+                }
+            ],
+            "removeConstraintList": [],
+            "removePolicyList": [],
+            "riSettingList": [
+                {
+                    "uuid": "preferredOfferingClass",
+                    "displayName": "Type",
+                    "value": "STANDARD",
+                    "entityType": "STANDARD"
+                },
+                {
+                    "uuid": "preferredTerm",
+                    "displayName": "Term",
+                    "value": "YEARS_3",
+                    "entityType": "YEARS_3"
+                },
+                {
+                    "uuid": "preferredPaymentOption",
+                    "displayName": "Payment",
+                    "value": "ALL_UPFRONT",
+                    "entityType": "ALL_UPFRONT"
+                },
+                {
+                    "uuid": "preferredCoverage",
+                    "displayName": "Coverage",
+                    "value": "80",
+                    "entityType": "80"
+                },
+                {
+                    "uuid": "riCoverageOverride",
+                    "displayName": "RI Coverage Override",
+                    "value": "false",
+                    "entityType": "false"
+                }
+            ],
+            "osMigrationSettingList": [],
+            "subscription": {}
+        },
+        "displayName": name,
+        "loadChanges": {
+            "utilizationList": [],
+            "maxUtilizationList": []
+        },
+        "projectionDays": [0],
+        "scope": [scope],
+        "topologyChanges": {
+            "addList": [],
+            "migrateList": [],
+            "removeList": [],
+            "replaceList": [],
+            "relievePressureList": []
+        },
+        "type": "OPTIMIZE_CLOUD"
+    };
+
+    this.scope = scope;
+    this.name = name;
+    this.options = options;
+    this.plan_market_name = "CLOUD_OPTIMIZATION_" + this.scope.uuid + "_" + Date.now();
+}
+
+CloudOptimizePlan.prototype = Object.create(Plan.prototype);
+
+exports.Plan = Plan;
 exports.CloudMigrationPlan = CloudMigrationPlan;
+exports.CloudOptimizePlan = CloudOptimizePlan;
