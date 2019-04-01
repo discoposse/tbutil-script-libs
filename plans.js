@@ -175,6 +175,8 @@ function CloudMigrationPlan(from, to, name, options) {
     this.plan_market_name = "CLOUD_MIGRATION_" + this.from.uuid + "_" + this.to.uuid + "_" + Date.now();
 }
 
+CloudMigrationPlan.prototype = Object.create(Plan.prototype);
+
 CloudMigrationPlan.prototype.generate_vm_template_mapping = function () {
     "use strict";
     if (Object.getOwnPropertyNames(this.scenario_run_response).length === 0) {
@@ -184,16 +186,19 @@ CloudMigrationPlan.prototype.generate_vm_template_mapping = function () {
     this.wait();
 
     var getActionsBody = {"actionTypeList": ["MOVE"], "relatedEntityTypes": ["VirtualMachine"]},
-        widx,
-        woidx,
+        idx,
         sidx,
         fidx,
+        uuid,
         with_action,
         without_action,
+        matched_actions = {},
         rows = [],
         ri_to_buy = false,
-        cost_with_ri = 0;
-    // Get MOVE actions for VMs from the "after" market
+        cost_with_ri = 0,
+        current_location,
+        vm_name;
+    // Get MOVE actions for VMs from the
     this.turbo_actions = client.getActionsByMarketUuid(
         this.scenario_run_response.uuid,
         {},
@@ -207,47 +212,90 @@ CloudMigrationPlan.prototype.generate_vm_template_mapping = function () {
         getActionsBody
     );
 
-    for (widx = 0; widx < this.turbo_actions.length; widx++) {
-        ri_to_buy = false;
-        cost_with_ri = 0;
-        with_action = this.turbo_actions[widx];
+    // Loop through all of the plan actions in the "optimized" scenario. We can
+    // safely add all of them to the matched actions now, and filter them later.
+    for (idx = 0; idx < this.turbo_actions.length; idx++) {
+        with_action = this.turbo_actions[idx];
         if (with_action.target.className === "VirtualMachine") {
-            for (woidx = 0; woidx < this.lift_and_shift_actions.length; woidx++) {
-                without_action = this.lift_and_shift_actions[woidx];
-                if (with_action.target.realtimeMarketReference.uuid === without_action.target.realtimeMarketReference.uuid) {
-                    if (!with_action.hasOwnProperty('reservedInstance')) { // 6.2 RI logic
-                        for (sidx = 0; sidx < with_action.stats.length; sidx++) {
-                            if (with_action.stats[sidx].name === "costPrice") {
-                                for (fidx = 0; fidx < with_action.stats[sidx].filters.length; fidx++) {
-                                    if (with_action.stats[sidx].filters[fidx].type === "savingsType" && with_action.stats[sidx].filters[fidx].value === "superSavings") {
-                                        ri_to_buy = true;
-                                        // TODO: This calculates the same as the dashboard, but it is consistently wrong (higher)
-                                        // than the actual 3yr RI. -- Fixed in 6.3.x?
-                                        cost_with_ri = with_action.stats[sidx].value * -1;
-                                    }
+            matched_actions[with_action.target.realtimeMarketReference.uuid] = {
+                "with": with_action,
+                "without": {}
+            };
+        }
+    }
+
+    // Loop through all of the plan actions in the "no resize" scenario, checking
+    // for a matching "with" action.
+    for (idx = 0; idx < this.lift_and_shift_actions.length; idx++) {
+        without_action = this.lift_and_shift_actions[idx];
+        if (without_action.target.className === "VirtualMachine") {
+            if (matched_actions.hasOwnProperty(without_action.target.realtimeMarketReference.uuid)) {
+                matched_actions[without_action.target.realtimeMarketReference.uuid].without = without_action;
+            } else {
+                matched_actions[without_action.target.realtimeMarketReference.uuid] = {
+                    "with": {},
+                    "without": without_action
+                };
+            }
+        }
+    }
+
+    // Loop over all matched actions, creating output rows, mindful of missing
+    // actions for with, or without.
+    for (uuid in matched_actions) {
+        if (matched_actions.hasOwnProperty(uuid)) {
+            ri_to_buy = false;
+            cost_with_ri = 0;
+            current_location = "Unknown";
+            with_action = matched_actions[uuid]["with"];
+            without_action = matched_actions[uuid].without;
+            vm_name = "";
+
+
+            if (without_action.hasOwnProperty("uuid")) {
+                vm_name = without_action.target.displayName;
+            }
+
+            if (with_action.hasOwnProperty("uuid")) {
+                vm_name = without_action.target.displayName;
+
+                if (!with_action.hasOwnProperty('reservedInstance')) { // 6.2 RI logic
+                    for (sidx = 0; sidx < with_action.stats.length; sidx++) {
+                        if (with_action.stats[sidx].name === "costPrice") {
+                            for (fidx = 0; fidx < with_action.stats[sidx].filters.length; fidx++) {
+                                if (with_action.stats[sidx].filters[fidx].type === "savingsType" && with_action.stats[sidx].filters[fidx].value === "superSavings") {
+                                    ri_to_buy = true;
+                                    // TODO: This calculates the same as the dashboard, but it is consistently wrong (higher)
+                                    // than the actual 3yr RI. -- Fixed in 6.3.x?
+                                    cost_with_ri = with_action.stats[sidx].value * -1;
                                 }
                             }
                         }
-                    } else if (with_action.reservedInstance.toBuy) { // 6.3 RI logic
-                        ri_to_buy = true;
-                        cost_with_ri = with_action.reservedInstance.effectiveHourlyCost;
                     }
-                    rows.push([
-                        with_action.target.displayName,
-                        without_action.target.aspects.virtualMachineAspect.os,
-                        with_action.currentLocation.displayName,
-                        without_action.template.displayName,
-                        without_action.newLocation.displayName,
-                        without_action.target.costPrice,
-                        with_action.template.displayName,
-                        with_action.newEntity.aspects.virtualMachineAspect.os,
-                        with_action.newLocation.displayName,
-                        with_action.target.costPrice,
-                        cost_with_ri,
-                        ri_to_buy
-                    ]);
+                } else if (with_action.reservedInstance.toBuy) { // 6.3 RI logic
+                    ri_to_buy = true;
+                    cost_with_ri = with_action.reservedInstance.effectiveHourlyCost;
+                }
+
+                if (with_action.hasOwnProperty("currentLocation")) {
+                    current_location = with_action.currentLocation.displayName;
                 }
             }
+
+            rows.push([
+                vm_name,
+                (without_action.hasOwnProperty("uuid") ? without_action.target.aspects.virtualMachineAspect.os : ""),
+                current_location,
+                (without_action.hasOwnProperty("uuid") ? without_action.template.displayName : ""),
+                (without_action.hasOwnProperty("uuid") ? without_action.newLocation.displayName : ""),
+                (without_action.hasOwnProperty("uuid") ? without_action.target.costPrice : ""),
+                (with_action.hasOwnProperty("uuid") ? with_action.template.displayName : ""),
+                (with_action.hasOwnProperty("uuid") ? with_action.newEntity.aspects.virtualMachineAspect.os : ""),
+                (with_action.hasOwnProperty("uuid") ? with_action.newLocation.displayName : ""),
+                (with_action.hasOwnProperty("uuid") ? with_action.target.costPrice : ""),
+                cost_with_ri,
+                ri_to_buy
+            ]);
         }
     }
 
@@ -456,8 +504,6 @@ CloudMigrationPlan.prototype.save_volume_mapping_csv = function (filepath) {
 
     writeTable(filepath, headers, rows);
 };
-
-CloudMigrationPlan.prototype = Object.create(Plan.prototype);
 
 function CloudOptimizePlan(scope, name, options) {
     "use strict";
