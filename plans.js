@@ -61,7 +61,7 @@ var Plan = (function () {
                 parseInt(this.scenario_create_response.uuid, 10),
                 {
                     disable_hateoas: true,
-                    ignore_constraints: true,
+                    ignore_constraints: false,
                     plan_market_name: this.plan_market_name
                 }
             );
@@ -135,7 +135,9 @@ function CloudMigrationPlan(from, to, name, options) {
     this.options = options;
 
     this.scenario_create_request.scope = [this.from, this.to];
-    this.scenario_create_request.topologyChanges.migrateList = [{source: this.from, destination: this.to}];
+    this.scenario_create_request.topologyChanges.migrateList = [
+        {"projectionDay": 0, source: this.from, destination: this.to}
+    ];
 
     var exclude_group = {},
         vm,
@@ -171,7 +173,7 @@ function CloudMigrationPlan(from, to, name, options) {
     if (this.options.hasOwnProperty("byol") && this.options.byol) {
         this.scenario_create_request.configChanges.osMigrationSettingList = this.byol_osMigrationSettingsList;
     }
-    this.scenario_create_request.topologyChanges.removeList = [{target: exclude_group}];
+    this.scenario_create_request.topologyChanges.removeList = [{"projectionDay": 0, target: exclude_group}];
     this.plan_market_name = "CLOUD_MIGRATION_" + this.from.uuid + "_" + this.to.uuid + "_" + Date.now();
 }
 
