@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: entities.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: entities.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/*global exports*/
+/*jslint plusplus: true*/
+
+/**
+ * A class representing an array of entities. Mostly adds filtering
+ * capabilities.
+ *
+ * @class
+ * @implements {Array} *
+ */
+var EntityList = (function () {
+    "use strict";
+
+    EntityList.prototype = Object.create(Array.prototype);
+
+    /**
+     * Initializes a new EntityList. Can be initialized either with an array of
+     * entities returned by the tbutil client, or with any "falsy" value (null will do fine).
+     *
+     * @constructs EntityList
+     *
+     * @param {object[]} [entities] - An array of entity object returned by the tbutil client.
+     *
+     * @example
+     * var entities = new EntityList(client.getEntitiesByMarketUuid('Market'));
+     */
+    function EntityList(entities) {
+        var i = 0;
+        if (entities &amp;&amp; entities.hasOwnProperty("length")) {
+            for (i = 0; i &lt; entities.length; i++) {
+                this.push(entities[i]);
+            }
+        }
+    }
+
+    /**
+     * Filters this EntityList to only entities of the specified entity type.
+     *
+     * @name EntityList#ByEntityType
+     * @function
+     * @param {string} entity_type - The name of the desired entity type. Case insensitive. Example "VirtualMachine"
+     * @returns EntityList
+     */
+    EntityList.prototype.ByEntityType = function (entity_type) {
+        var i = 0,
+            return_list = new EntityList();
+
+        for (i = 0; i &lt; this.length; i++) {
+            if (this[i].hasOwnProperty("className") &amp;&amp; this[i].className.toLowerCase() === entity_type.toLowerCase()) {
+                return_list.push(this[i]);
+            }
+        }
+
+        return return_list;
+    };
+
+    /**
+     * Filters this EntityList to only entities in one of the specified states.
+     *
+     * @name EntityList#ByEntityType
+     * @function
+     * @param {string[]} states - The names of the desired entity states. Case insensitive. Example ["SUSPENDED","inactive"]
+     * @returns EntityList
+     */
+    EntityList.prototype.ByStates = function (states) {
+        var i = 0,
+            return_list = new EntityList();
+
+        states = states.map(function (state) { return state.toLowerCase(); });
+
+        for (i = 0; i &lt; this.length; i++) {
+            if (this[i].hasOwnProperty("state") &amp;&amp; states.indexOf(this[i].state.toLowerCase()) > -1) {
+                return_list.push(this[i]);
+            }
+        }
+
+        return return_list;
+    };
+
+    /**
+     * Filters this EntityList to only entities in the specified state.
+     *
+     * @name EntityList#ByEntityType
+     * @function
+     * @param {string} state - The names of the desired entity state. Case insensitive. Example "ACTIVE"
+     * @returns EntityList
+     */
+    EntityList.prototype.ByState = function (state) {
+        var i = 0,
+            return_list = new EntityList();
+
+        for (i = 0; i &lt; this.length; i++) {
+            if (this[i].hasOwnProperty("state") &amp;&amp; this[i].state.toLowerCase() === state.toLowerCase()) {
+                return_list.push(this[i]);
+            }
+        }
+
+        return return_list;
+    };
+
+    /**
+     * Filters this EntityList to only entities which are not in the specified state.
+     *
+     * @name EntityList#ByEntityType
+     * @function
+     * @param {string} state - The names of the undesired entity state. Case insensitive. Example "SUSPENDED"
+     * @returns EntityList
+     */
+    EntityList.prototype.ByStateNot = function (state) {
+        var i = 0,
+            return_list = new EntityList();
+
+        for (i = 0; i &lt; this.length; i++) {
+            if (this[i].hasOwnProperty("state") &amp;&amp; this[i].state.toLowerCase() !== state.toLowerCase()) {
+                return_list.push(this[i]);
+            }
+        }
+
+        return return_list;
+    };
+
+    return EntityList;
+}());
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Action.html">Action</a></li><li><a href="ActionList.html">ActionList</a></li><li><a href="CloudMigrationPlan.html">CloudMigrationPlan</a></li><li><a href="CloudOptimizePlan.html">CloudOptimizePlan</a></li><li><a href="EntityList.html">EntityList</a></li><li><a href="MigrationPlanActionsByEntityList.html">MigrationPlanActionsByEntityList</a></li><li><a href="MigrationPlanEntity.html">MigrationPlanEntity</a></li><li><a href="Plan.html">Plan</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Utilities">Utilities</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a> on Thu May 09 2019 16:08:46 GMT-0700 (Pacific Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

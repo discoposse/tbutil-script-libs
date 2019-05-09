@@ -1,4 +1,32 @@
-/*global client,ActionList,Action,writeTable,EntityList*/
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: plans.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: plans.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/*global client,ActionList,Action,writeTable,EntityList*/
 /*jslint plusplus: true*/
 
 /**
@@ -40,7 +68,7 @@ var MigrationPlanEntity = (function () {
      * @param {object=} entity - An entity object returned by the tbutil client.
      *
      * @example
-     * var plan_entity = client.getEntitiesByMarketUuid(<uuid of cloud migration plan>)[0]
+     * var plan_entity = client.getEntitiesByMarketUuid(&lt;uuid of cloud migration plan>)[0]
      */
     function MigrationPlanEntity(entity) {
         if (entity) {
@@ -92,7 +120,7 @@ var MigrationPlanEntity = (function () {
      */
     MigrationPlanEntity.prototype.IsUnplaced = function () {
         return this.allocation_actions.length === 0 ||
-              (this.allocation_actions.length > 0 && this.consumption_actions.length === 0);
+              (this.allocation_actions.length > 0 &amp;&amp; this.consumption_actions.length === 0);
     };
 
     return MigrationPlanEntity;
@@ -121,12 +149,12 @@ var MigrationPlanActionsByEntityList = (function () {
         var idx = 0,
             realtimeRefUuid;
 
-        for (idx = 0; idx < entities.length; idx++) {
+        for (idx = 0; idx &lt; entities.length; idx++) {
             realtimeRefUuid = entities[idx].realtimeMarketReference.uuid;
             this[realtimeRefUuid] = new MigrationPlanEntity(entities[idx]);
         }
 
-        for (idx = 0; idx < consumption_actions.length; idx++) {
+        for (idx = 0; idx &lt; consumption_actions.length; idx++) {
             realtimeRefUuid = consumption_actions[idx].target.realtimeMarketReference.uuid;
             if (!this.hasOwnProperty(realtimeRefUuid)) {
                 this[realtimeRefUuid] = new MigrationPlanEntity();
@@ -135,7 +163,7 @@ var MigrationPlanActionsByEntityList = (function () {
             this[realtimeRefUuid].AddConsumptionAction(consumption_actions[idx]);
         }
 
-        for (idx = 0; idx < allocation_actions.length; idx++) {
+        for (idx = 0; idx &lt; allocation_actions.length; idx++) {
             realtimeRefUuid = allocation_actions[idx].target.realtimeMarketReference.uuid;
             if (!this.hasOwnProperty(realtimeRefUuid)) {
                 this[realtimeRefUuid] = new MigrationPlanEntity();
@@ -177,7 +205,7 @@ var Plan = (function () {
     Plan.prototype.scenario_run_response = {};
 
     /**
-     * Set at construct time. A name for the resulting plan market. This is *not* the name of the plan, which is in the scenario_create_request, but instead a name for the market that gets created when this plan is run. This should be unique. I.E. <PLAN_TYPE>-${Date.now()}
+     * Set at construct time. A name for the resulting plan market. This is *not* the name of the plan, which is in the scenario_create_request, but instead a name for the market that gets created when this plan is run. This should be unique. I.E. &lt;PLAN_TYPE>-${Date.now()}
      * @plan_market_name Plan#plan_market_name
      * @type {string}
      */
@@ -187,7 +215,7 @@ var Plan = (function () {
      * Initializes a new instance of Plan
      * @constructs Plan
      * @param {object} scenario_create_request - The payload of a POST request to /vmturbo/rest/scenarios. Each inheriting class must assemble this for the appropriate plan type.
-     * @param {string} plan_market_name - A name for the resulting plan market. This is *not* the name of the plan, which is in the scenario_create_request, but instead a name for the market that gets created when this plan is run. This should be unique. I.E. <PLAN_TYPE>-${Date.now()}
+     * @param {string} plan_market_name - A name for the resulting plan market. This is *not* the name of the plan, which is in the scenario_create_request, but instead a name for the market that gets created when this plan is run. This should be unique. I.E. &lt;PLAN_TYPE>-${Date.now()}
      */
     function Plan(scenario_create_request, plan_market_name) {
         this.scenario_create_request = scenario_create_request;
@@ -266,11 +294,11 @@ var CloudMigrationPlan = (function () {
      * @param {object} to - A group of PMs where the VMs should be migrated. Only required property on the object is 'uuid'
      * @param {string} name - The name of the plan to be created
      * @param {object=} options - An object having 0 or more of the following options
-     *    <ul>
-     *      <li>exclude {object} A group to exclude. By default a group of VMs belonging to the 'to' group is created, and excluded.
-     *      <li>byol {bool} A boolean indicating if BYOL should be used (Default: false)
-     *      <li>hours_per_month {number} The number of hours per month (Default: 730)
-     *    </ul>
+     *    &lt;ul>
+     *      &lt;li>exclude {object} A group to exclude. By default a group of VMs belonging to the 'to' group is created, and excluded.
+     *      &lt;li>byol {bool} A boolean indicating if BYOL should be used (Default: false)
+     *      &lt;li>hours_per_month {number} The number of hours per month (Default: 730)
+     *    &lt;/ul>
      *
      * @example
      * var from = client.getSearchResults({q: "vms_vcenter"})[0];
@@ -342,7 +370,7 @@ var CloudMigrationPlan = (function () {
         if (!this.options.hasOwnProperty("exclude")) {
             to_supplychain = client.getSupplyChainByEntityUuid(this.to.uuid, {types: ["VirtualMachine"], detail_type: "entity"});
             // It's possible that this group has no VMs, in which case the supplychain would be blank.
-            if (to_supplychain.hasOwnProperty("seMap") && to_supplychain.seMap.hasOwnProperty("VirtualMachine")) {
+            if (to_supplychain.hasOwnProperty("seMap") &amp;&amp; to_supplychain.seMap.hasOwnProperty("VirtualMachine")) {
                 for (vm in to_supplychain.seMap.VirtualMachine.instances) {
                     if (to_supplychain.seMap.VirtualMachine.instances.hasOwnProperty(vm)) {
                         exclude_group_body.memberUuidList.push(vm);
@@ -357,7 +385,7 @@ var CloudMigrationPlan = (function () {
             exclude_group = this.options.exclude;
         }
 
-        if (this.options.hasOwnProperty("byol") && this.options.byol) {
+        if (this.options.hasOwnProperty("byol") &amp;&amp; this.options.byol) {
             this.scenario_create_request.configChanges.osMigrationSettingList = this.byol_osMigrationSettingsList;
         }
         this.scenario_create_request.topologyChanges.removeList = [{"projectionDay": 0, target: exclude_group}];
@@ -367,7 +395,7 @@ var CloudMigrationPlan = (function () {
     /**
      * Returns an array, of arrays, representing rows and columns, which are identical
      * to the vm-to-template-mapping CSV generated by the UI for a Cloud Migration Plan.
-     * This <b><i>does not</i></b> create or save the CSV file.
+     * This &lt;b>&lt;i>does not&lt;/i>&lt;/b> create or save the CSV file.
      * See {@link CloudMigrationPlan#save_vm_template_mapping_csv} for that.
      *
      * @todo Refactor this to use {@link MigrationPlanActionsByEntityList}
@@ -411,7 +439,7 @@ var CloudMigrationPlan = (function () {
 
         // Loop through all of the plan actions in the "optimized" scenario. We can
         // safely add all of them to the matched actions now, and filter them later.
-        for (idx = 0; idx < this.turbo_actions.length; idx++) {
+        for (idx = 0; idx &lt; this.turbo_actions.length; idx++) {
             with_action = this.turbo_actions[idx];
             if (with_action.target.className === "VirtualMachine") {
                 matched_actions[with_action.target.realtimeMarketReference.uuid] = {
@@ -423,7 +451,7 @@ var CloudMigrationPlan = (function () {
 
         // Loop through all of the plan actions in the "no resize" scenario, checking
         // for a matching "with" action.
-        for (idx = 0; idx < this.lift_and_shift_actions.length; idx++) {
+        for (idx = 0; idx &lt; this.lift_and_shift_actions.length; idx++) {
             without_action = this.lift_and_shift_actions[idx];
             if (without_action.target.className === "VirtualMachine") {
                 if (matched_actions.hasOwnProperty(without_action.target.realtimeMarketReference.uuid)) {
@@ -457,10 +485,10 @@ var CloudMigrationPlan = (function () {
                     vm_name = without_action.target.displayName;
 
                     if (!with_action.hasOwnProperty('reservedInstance')) { // 6.2 RI logic
-                        for (sidx = 0; sidx < with_action.stats.length; sidx++) {
+                        for (sidx = 0; sidx &lt; with_action.stats.length; sidx++) {
                             if (with_action.stats[sidx].name === "costPrice") {
-                                for (fidx = 0; fidx < with_action.stats[sidx].filters.length; fidx++) {
-                                    if (with_action.stats[sidx].filters[fidx].type === "savingsType" && with_action.stats[sidx].filters[fidx].value === "superSavings") {
+                                for (fidx = 0; fidx &lt; with_action.stats[sidx].filters.length; fidx++) {
+                                    if (with_action.stats[sidx].filters[fidx].type === "savingsType" &amp;&amp; with_action.stats[sidx].filters[fidx].value === "superSavings") {
                                         ri_to_buy = true;
                                         // TODO: This calculates the same as the dashboard, but it is consistently wrong (higher)
                                         // than the actual 3yr RI. -- Fixed in 6.3.x?
@@ -510,7 +538,7 @@ var CloudMigrationPlan = (function () {
         var ridx,
             headers = [],
             rows = this.generate_vm_template_mapping();
-        for (ridx = 0; ridx < rows.length; ridx++) {
+        for (ridx = 0; ridx &lt; rows.length; ridx++) {
             if (rows[ridx][11]) {
                 rows[ridx][11] = "Yes";
             } else {
@@ -576,7 +604,7 @@ var CloudMigrationPlan = (function () {
     /**
      * Returns an array, of arrays, representing rows and columns, which are identical
      * to the volume-tier-mapping CSV generated by the UI for a Cloud Migration Plan.
-     * This <b><i>does not</i></b> create or save the CSV file.
+     * This &lt;b>&lt;i>does not&lt;/i>&lt;/b> create or save the CSV file.
      * See {@link CloudMigrationPlan#save_volume_mapping_csv} for that.
      *
      * @todo Refactor this to use {@link MigrationPlanActionsByEntityList}
@@ -617,15 +645,15 @@ var CloudMigrationPlan = (function () {
             getActionsBody
         );
 
-        for (widx = 0; widx < this.turbo_actions.length; widx++) {
+        for (widx = 0; widx &lt; this.turbo_actions.length; widx++) {
             with_action = this.turbo_actions[widx];
-            for (woidx = 0; woidx < this.lift_and_shift_actions.length; woidx++) {
+            for (woidx = 0; woidx &lt; this.lift_and_shift_actions.length; woidx++) {
                 without_action = this.lift_and_shift_actions[woidx];
                 if (with_action.target.realtimeMarketReference.uuid === without_action.target.realtimeMarketReference.uuid) {
-                    for (wvdidx = 0; wvdidx < with_action.virtualDisks.length; wvdidx++) {
-                        for (wovdidx = 0; wovdidx < without_action.virtualDisks.length; wovdidx++) {
+                    for (wvdidx = 0; wvdidx &lt; with_action.virtualDisks.length; wvdidx++) {
+                        for (wovdidx = 0; wovdidx &lt; without_action.virtualDisks.length; wovdidx++) {
                             if (with_action.virtualDisks[wvdidx].displayName === without_action.virtualDisks[wovdidx].displayName) {
-                                for (wvdsidx = 0; wvdsidx < with_action.virtualDisks[wvdidx].stats.length; wvdsidx++) {
+                                for (wvdsidx = 0; wvdsidx &lt; with_action.virtualDisks[wvdidx].stats.length; wvdsidx++) {
                                     if (with_action.virtualDisks[wvdidx].stats[wvdsidx].name === "StorageAmount") {
                                         w_size_in_mb = with_action.virtualDisks[wvdidx].stats[wvdsidx].capacity.total;
                                     }
@@ -634,7 +662,7 @@ var CloudMigrationPlan = (function () {
                                     }
                                 }
 
-                                for (wovdsidx = 0; wovdsidx < without_action.virtualDisks[wovdidx].stats.length; wovdsidx++) {
+                                for (wovdsidx = 0; wovdsidx &lt; without_action.virtualDisks[wovdidx].stats.length; wovdsidx++) {
                                     if (without_action.virtualDisks[wovdidx].stats[wovdsidx].name === "StorageAmount") {
                                         wo_size_in_mb = without_action.virtualDisks[wovdidx].stats[wovdsidx].capacity.total;
                                     }
@@ -677,7 +705,7 @@ var CloudMigrationPlan = (function () {
         var ridx,
             headers = [],
             rows = this.generate_volume_mapping();
-        for (ridx = 0; ridx < rows.length; ridx++) {
+        for (ridx = 0; ridx &lt; rows.length; ridx++) {
             if (this.options.hasOwnProperty("hours_per_month")) {
                 rows[ridx][7] = rows[ridx][7] * this.options.hours_per_month;
             } else {
@@ -728,7 +756,7 @@ var CloudMigrationPlan = (function () {
      * Returns all actions for the "allocation" market for this cloud migration plan.
      * This is the first related scenario, and found as relatedPlanMarkets[0].uuid
      * in the market DTO, and the response to posting the scenario to the realtime
-     * market. It is labeled as <name and uuid>_vmResize_false
+     * market. It is labeled as &lt;name and uuid>_vmResize_false
      *
      * @name CloudMigrationPlan#AllocationActions
      * @function
@@ -909,3 +937,26 @@ var CloudOptimizePlan = (function () {
 
     return CloudOptimizePlan;
 }());
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Action.html">Action</a></li><li><a href="ActionList.html">ActionList</a></li><li><a href="CloudMigrationPlan.html">CloudMigrationPlan</a></li><li><a href="CloudOptimizePlan.html">CloudOptimizePlan</a></li><li><a href="EntityList.html">EntityList</a></li><li><a href="MigrationPlanActionsByEntityList.html">MigrationPlanActionsByEntityList</a></li><li><a href="MigrationPlanEntity.html">MigrationPlanEntity</a></li><li><a href="Plan.html">Plan</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Utilities">Utilities</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a> on Thu May 09 2019 16:08:46 GMT-0700 (Pacific Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
