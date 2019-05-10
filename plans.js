@@ -227,6 +227,9 @@ var Plan = (function () {
      * @function
      */
     Plan.prototype.wait = function () {
+        if (!this.scenario_run_response || !this.scenario_run_response.uuid) {
+            throw "This plan has not been run yet. Please run the Plan#run method first.";
+        }
         // Loop getting the created market until it is in "SUCCEDED" .state
         var state = "";
         do {
@@ -237,6 +240,10 @@ var Plan = (function () {
     };
 
     Plan.prototype.get_actions = function () {
+        if (!this.scenario_run_response || !this.scenario_run_response.uuid) {
+            throw "This plan has not been run yet. Please run the Plan#run method first.";
+        }
+
         return client.getActionsByMarketUuid(
             this.scenario_run_response.uuid,
             {},
@@ -821,7 +828,7 @@ var CloudMigrationPlan = (function () {
 var CloudOptimizePlan = (function () {
     "use strict";
     CloudOptimizePlan.prototype = Object.create(Plan.prototype);
-    
+
     /**
      * Initializes a new CloudOptimizePlan.
      *
