@@ -8,4 +8,4 @@ These are meant to be copy/pasted into scripts you're using, or gulp-concat'd in
 Generate reference docs with;
 `jsdoc -d docs *`
 
-See [here](./docs/index.html) for generated reference docs
+See [here](http://turbonomiclabs.com/tbutil-script-libs/) for generated reference docs
